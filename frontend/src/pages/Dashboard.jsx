@@ -7,6 +7,7 @@ import Card from '../components/Card';
 import Alert from '../components/Alert';
 import TaskItem from '../components/TaskItem';
 import TaskForm from '../components/TaskForm';
+import EditTaskForm from '../components/EditTaskForm';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -16,24 +17,32 @@ export default function Dashboard() {
     loading, 
     error, 
     stats, 
-    addTask, 
+    addTask,
+    updateTask,
     toggleTaskComplete, 
     deleteTask, 
     clearError,
     getSummary,
+    getPrioritized,
   } = useTasks();
   
   const [showForm, setShowForm] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
   const [filter, setFilter] = useState('all');
   const [showSummary, setShowSummary] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summary, setSummary] = useState('');
+  const [priorityList, setPriorityList] = useState(null);
+  const [priorityLoading, setPriorityLoading] = useState(false);
 
   const handleAddTask = async (taskData) => {
     const result = await addTask(taskData);
-    if (result.success) {
-      setShowForm(false);
-    }
+    if (result.success) setShowForm(false);
+  };
+
+  const handleEditTask = async (taskData) => {
+    const result = await updateTask(editingTask.id, taskData);
+    if (result.success) setEditingTask(null);
   };
 
   const handleToggleTask = async (id, status) => {
@@ -47,11 +56,19 @@ export default function Dashboard() {
   const handleAiSummary = async () => {
     setSummaryLoading(true);
     setShowSummary(true);
+    setPriorityList(null);
     const result = await getSummary();
-    if (result.success) {
-      setSummary(result.data.result);
-    }
+    if (result.success) setSummary(result.data.result);
     setSummaryLoading(false);
+  };
+
+  const handleAiPrioritize = async () => {
+    setPriorityLoading(true);
+    setPriorityList(null);
+    setShowSummary(false);
+    const result = await getPrioritized();
+    if (result.success) setPriorityList(result.data.tasks);
+    setPriorityLoading(false);
   };
 
   const filteredTasks = tasks.filter((task) => {
@@ -87,6 +104,14 @@ export default function Dashboard() {
             <div className="header-actions">
               <Button 
                 variant="secondary" 
+                onClick={handleAiPrioritize}
+                loading={priorityLoading}
+                disabled={tasks.length === 0}
+              >
+                🎯 Prioritize
+              </Button>
+              <Button 
+                variant="secondary" 
                 onClick={handleAiSummary}
                 loading={summaryLoading}
                 disabled={tasks.length === 0}
@@ -114,6 +139,27 @@ export default function Dashboard() {
                 <strong>📊 Task Summary:</strong>
                 <p>{summary || 'Generating summary...'}</p>
               </div>
+            </Alert>
+          )}
+
+          {/* AI Prioritization */}
+          {priorityList && (
+            <Alert variant="info" onClose={() => setPriorityList(null)}>
+              <strong>🎯 AI Priority Ranking:</strong>
+              <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {priorityList.map((t) => (
+                  <li key={t.id || t.rank} style={{ fontSize: '0.875rem' }}>
+                    <span style={{
+                      fontWeight: 600,
+                      color: t.urgency === 'HIGH' ? '#991b1b' : t.urgency === 'MEDIUM' ? '#92400e' : '#166534',
+                      marginRight: '0.4rem',
+                    }}>
+                      [{t.urgency}]
+                    </span>
+                    <strong>{t.title}</strong> — {t.reasoning}
+                  </li>
+                ))}
+              </ol>
             </Alert>
           )}
 
@@ -213,6 +259,7 @@ export default function Dashboard() {
                     task={task}
                     onToggle={() => handleToggleTask(task.id, task.status)}
                     onDelete={() => handleDeleteTask(task.id)}
+                    onEdit={() => setEditingTask(task)}
                   />
                 ))
               )}
@@ -226,6 +273,15 @@ export default function Dashboard() {
         <TaskForm
           onSubmit={handleAddTask}
           onClose={() => setShowForm(false)}
+        />
+      )}
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <EditTaskForm
+          task={editingTask}
+          onSubmit={handleEditTask}
+          onClose={() => setEditingTask(null)}
         />
       )}
     </div>

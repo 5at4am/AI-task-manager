@@ -103,6 +103,16 @@ export const aiAPI = {
     const response = await api.post('/ai/summarize', { task_ids: taskIds, provider });
     return response.data;
   },
+
+  prioritize: async (taskIds = null, provider = 'groq') => {
+    const response = await api.post('/ai/prioritize', { task_ids: taskIds, provider });
+    return response.data;
+  },
+
+  breakdown: async (title, description = null, provider = 'groq') => {
+    const response = await api.post('/ai/breakdown', { title, description, provider });
+    return response.data;
+  },
 };
 
 export default api;

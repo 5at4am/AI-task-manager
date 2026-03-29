@@ -96,6 +96,13 @@
   white-space: nowrap;
 }
 
+.ai-btn-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
 .ai-suggestion {
   font-size: 0.875rem;
   line-height: 1.5;

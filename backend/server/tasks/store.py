@@ -1,70 +1,64 @@
-# In-memory task store
-import uuid
-from datetime import datetime
-from typing import Optional, List
+from datetime import datetime, timezone
+from typing import Optional
+from uuid import uuid4
+from sqlalchemy.orm import Session
+from server.database import TaskModel
+from .models import TaskCreate, TaskUpdate, Priority, Status
 
-tasks = {}
+
+def _now():
+    return datetime.now(timezone.utc)
 
 
-def create_task(task_data: dict) -> dict:
-    task_id = str(uuid.uuid4())
-    now = datetime.utcnow()
-    task = {
-        "id": task_id,
-        "title": task_data["title"],
-        "description": task_data.get("description"),
-        "priority": task_data.get("priority", "medium"),
-        "status": task_data.get("status", "todo"),
-        "tags": task_data.get("tags", []),
-        "due_date": task_data.get("due_date"),
-        "created_at": now,
-        "updated_at": now,
-    }
-    tasks[task_id] = task
+def create_task(db: Session, user_email: str, data: TaskCreate) -> TaskModel:
+    task = TaskModel(id=str(uuid4()), user_email=user_email, **data.model_dump(),
+                     created_at=_now(), updated_at=_now())
+    db.add(task)
+    db.commit()
+    db.refresh(task)
     return task
 
 
-def get_task(task_id: str) -> Optional[dict]:
-    return tasks.get(task_id)
+def get_task(db: Session, task_id: str, user_email: str) -> Optional[TaskModel]:
+    return db.query(TaskModel).filter(
+        TaskModel.id == task_id, TaskModel.user_email == user_email
+    ).first()
 
 
-def list_tasks(
-    status: Optional[str] = None,
-    priority: Optional[str] = None,
-    tags: Optional[List[str]] = None,
-    sort_by: str = "created_at",
-    order: str = "desc",
-) -> List[dict]:
-    result = list(tasks.values())
-
-    # Filter
+def list_tasks(db: Session, user_email: str, status: Optional[Status] = None,
+               priority: Optional[Priority] = None, tags: Optional[list[str]] = None,
+               sort_by: str = "created_at", order: str = "desc") -> list[TaskModel]:
+    query = db.query(TaskModel).filter(TaskModel.user_email == user_email)
     if status:
-        result = [t for t in result if t["status"] == status]
+        query = query.filter(TaskModel.status == status)
     if priority:
-        result = [t for t in result if t["priority"] == priority]
+        query = query.filter(TaskModel.priority == priority)
+    results = query.all()
     if tags:
-        result = [t for t in result if any(tag in t.get("tags", []) for tag in tags)]
-
-    # Sort
+        results = [t for t in results if any(tag in (t.tags or []) for tag in tags)]
     reverse = order == "desc"
-    result.sort(key=lambda x: x.get(sort_by, ""), reverse=reverse)
+    valid = {"created_at", "updated_at", "priority", "status", "title"}
+    if sort_by in valid:
+        results.sort(key=lambda t: (getattr(t, sort_by) is None, getattr(t, sort_by)), reverse=reverse)
+    return results
 
-    return result
 
-
-def update_task(task_id: str, updates: dict) -> Optional[dict]:
-    if task_id not in tasks:
+def update_task(db: Session, task_id: str, user_email: str, data: TaskUpdate) -> Optional[TaskModel]:
+    task = get_task(db, task_id, user_email)
+    if not task:
         return None
-    task = tasks[task_id]
-    for key, value in updates.items():
-        if value is not None:
-            task[key] = value
-    task["updated_at"] = datetime.utcnow()
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(task, k, v)
+    task.updated_at = _now()
+    db.commit()
+    db.refresh(task)
     return task
 
 
-def delete_task(task_id: str) -> bool:
-    if task_id in tasks:
-        del tasks[task_id]
-        return True
-    return False
+def delete_task(db: Session, task_id: str, user_email: str) -> bool:
+    task = get_task(db, task_id, user_email)
+    if not task:
+        return False
+    db.delete(task)
+    db.commit()
+    return True

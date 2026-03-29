@@ -1,21 +1,24 @@
-# In-memory user store
-users = {}
+from typing import Optional
+from sqlalchemy.orm import Session
+from server.database import UserModel
 
 
-def create_user(name: str, email: str, hashed_password: str):
-    users[email] = {
-        "name": name,
-        "email": email,
-        "hashed_password": hashed_password,
-    }
-    return users[email]
-
-def get_user(email: str):
-    return users.get(email)
+def get_user(db: Session, email: str) -> Optional[UserModel]:
+    return db.query(UserModel).filter(UserModel.email == email).first()
 
 
-def update_password(email: str, new_hashed_password: str):
-    if email in users:
-        users[email]["hashed_password"] = new_hashed_password
-        return True
-    return False
+def create_user(db: Session, name: str, email: str, hashed_password: str) -> UserModel:
+    user = UserModel(name=name, email=email, hashed_password=hashed_password)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_password(db: Session, email: str, hashed_password: str) -> bool:
+    user = get_user(db, email)
+    if not user:
+        return False
+    user.hashed_password = hashed_password
+    db.commit()
+    return True

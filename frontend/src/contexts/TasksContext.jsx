@@ -122,10 +122,25 @@ export function TasksProvider({ children }) {
       const result = await aiAPI.summarize(taskIds, provider);
       return { success: true, data: result };
     } catch (err) {
-      return { 
-        success: false, 
-        error: err.response?.data?.detail || 'Failed to get summary' 
-      };
+      return { success: false, error: err.response?.data?.detail || 'Failed to get summary' };
+    }
+  }, []);
+
+  const getPrioritized = useCallback(async (taskIds = null, provider = 'groq') => {
+    try {
+      const result = await aiAPI.prioritize(taskIds, provider);
+      return { success: true, data: result };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.detail || 'Failed to prioritize tasks' };
+    }
+  }, []);
+
+  const getBreakdown = useCallback(async (title, description = null, provider = 'groq') => {
+    try {
+      const result = await aiAPI.breakdown(title, description, provider);
+      return { success: true, data: result };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.detail || 'Failed to break down task' };
     }
   }, []);
 
@@ -164,6 +179,8 @@ export function TasksProvider({ children }) {
     setTaskFilters,
     getSuggestions,
     getSummary,
+    getPrioritized,
+    getBreakdown,
   };
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

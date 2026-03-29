@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from server.auth.router import router as auth_router
 from server.tasks.router import router as tasks_router
 from server.ai.router import router as ai_router
+from server.database import init_db
 
 load_dotenv()
 
@@ -16,6 +17,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
 
 app.include_router(auth_router)
 app.include_router(tasks_router)
