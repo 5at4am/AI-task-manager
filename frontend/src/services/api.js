@@ -94,21 +94,13 @@ export const tasksAPI = {
 
 // AI API
 export const aiAPI = {
-  suggest: async (title, description, tags, provider = 'gemini') => {
-    const response = await api.post('/ai/suggest', {
-      title,
-      description,
-      tags,
-      provider,
-    });
+  suggest: async (title, description, tags, provider = 'groq') => {
+    const response = await api.post('/ai/suggest', { title, description, tags, provider });
     return response.data;
   },
 
   summarize: async (taskIds = null, provider = 'groq') => {
-    const response = await api.post('/ai/summarize', {
-      task_ids: taskIds,
-      provider,
-    });
+    const response = await api.post('/ai/summarize', { task_ids: taskIds, provider });
     return response.data;
   },
 };
