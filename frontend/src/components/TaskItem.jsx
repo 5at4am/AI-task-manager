@@ -1,99 +1,98 @@
 import { useState } from 'react';
-import './TaskItem.css';
+import { Pencil, Trash2, CalendarDays } from 'lucide-react';
+
+const PRIORITY_STYLES = {
+  high:   'bg-[#FFEEF0] text-[#993556] dark:bg-[#993556]/20 dark:text-[#ED93B1]',
+  medium: 'bg-[#FFF3E0] text-[#854F0B] dark:bg-[#854F0B]/20 dark:text-[#EF9F27]',
+  low:    'bg-[#E8FDF3] text-[#0F6E56] dark:bg-[#0F6E56]/20 dark:text-[#5DCAA5]',
+};
+
+const STATUS_STYLES = {
+  todo:        'bg-violet-50 text-violet-600 dark:bg-violet-600/15 dark:text-mist-300',
+  in_progress: 'bg-violet-100 text-violet-700 dark:bg-violet-600/25 dark:text-mist-100',
+  done:        'bg-[#E8FDF3] text-[#0F6E56] dark:bg-[#0F6E56]/20 dark:text-[#5DCAA5]',
+};
+
+const STATUS_LABELS = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' };
 
 export default function TaskItem({ task, onToggle, onDelete, onEdit }) {
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      setDeleting(true);
-      await onDelete();
-    }
+    if (!window.confirm('Delete this task?')) return;
+    setDeleting(true);
+    await onDelete();
   };
 
-  const statusLabels = {
-    todo: 'To Do',
-    in_progress: 'In Progress',
-    done: 'Done',
-  };
+  const isDone = task.status === 'done';
 
   return (
-    <div className={`task-item ${task.status === 'done' ? 'completed' : ''} ${deleting ? 'deleting' : ''}`}>
-      <button 
-        className={`task-checkbox ${task.status === 'done' ? 'checked' : ''}`}
+    <div className={`flex items-start gap-3 px-5 py-4 transition-colors duration-150 hover:bg-violet-50/50 dark:hover:bg-void-700/40 ${deleting ? 'opacity-40 pointer-events-none' : ''}`}>
+
+      {/* Checkbox */}
+      <button
         onClick={onToggle}
-        aria-label={task.status === 'done' ? 'Mark as incomplete' : 'Mark as complete'}
+        aria-label={isDone ? 'Mark incomplete' : 'Mark complete'}
+        className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors duration-150 cursor-pointer
+          ${isDone ? 'bg-violet-600 border-violet-600' : 'border-violet-300 dark:border-violet-600/50 hover:border-violet-500'}`}
       >
-        {task.status === 'done' && (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-            <polyline points="20 6 9 17 4 12" />
+        {isDone && (
+          <svg viewBox="0 0 12 12" fill="none" className="w-3 h-3">
+            <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         )}
       </button>
 
-      <div className="task-content">
-        <div className="task-header">
-          <h3 className={`task-title ${task.status === 'done' ? 'completed' : ''}`}>
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <span className={`text-sm font-medium ${isDone ? 'line-through text-text-muted dark:text-mist-500' : 'text-text-body dark:text-mist-100'}`}>
             {task.title}
-          </h3>
-          <div className="task-badges">
-            <span className={`badge priority-${task.priority}`}>
-              {task.priority}
-            </span>
-            <span className={`badge status-${task.status}`}>
-              {statusLabels[task.status]}
-            </span>
-          </div>
+          </span>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium}`}>
+            {task.priority}
+          </span>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLES[task.status]}`}>
+            {STATUS_LABELS[task.status]}
+          </span>
         </div>
-        
+
         {task.description && (
-          <p className="task-description">{task.description}</p>
+          <p className="text-xs text-text-secondary dark:text-mist-500 leading-relaxed mb-1.5">{task.description}</p>
         )}
-        
-        <div className="task-meta">
-          {task.tags && task.tags.length > 0 && (
-            <div className="task-tags">
-              {task.tags.map((tag, index) => (
-                <span key={index} className="tag">{tag}</span>
-              ))}
-            </div>
-          )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {task.tags?.map((tag, i) => (
+            <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-600/12 text-violet-600 dark:text-mist-300 border border-violet-200 dark:border-violet-600/20">
+              {tag}
+            </span>
+          ))}
           {task.due_date && (
-            <span className="task-due-date">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
+            <span className="flex items-center gap-1 text-[11px] text-text-muted dark:text-mist-500">
+              <CalendarDays className="w-3 h-3" />
               {new Date(task.due_date).toLocaleDateString()}
             </span>
           )}
         </div>
       </div>
 
-      <div className="task-actions">
+      {/* Actions */}
+      <div className="flex items-center gap-1 shrink-0">
         {onEdit && (
-          <button 
-            className="task-edit"
+          <button
             onClick={onEdit}
             aria-label="Edit task"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-text-muted dark:text-mist-500 hover:text-violet-600 dark:hover:text-mist-300 hover:bg-violet-50 dark:hover:bg-void-600 transition-colors duration-150 cursor-pointer"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
+            <Pencil className="w-3.5 h-3.5" />
           </button>
         )}
-        <button 
-          className="task-delete"
+        <button
           onClick={handleDelete}
           aria-label="Delete task"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-text-muted dark:text-mist-500 hover:text-[#993556] dark:hover:text-[#ED93B1] hover:bg-[#FFEEF0] dark:hover:bg-[#993556]/15 transition-colors duration-150 cursor-pointer"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
