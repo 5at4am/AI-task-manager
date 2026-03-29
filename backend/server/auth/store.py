@@ -10,7 +10,6 @@ def create_user(name: str, email: str, hashed_password: str):
     }
     return users[email]
 
-
 def get_user(email: str):
     return users.get(email)
 
