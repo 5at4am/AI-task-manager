@@ -1,33 +1,62 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
+
+// Simple JWT decode (for client-side claims extraction only - not for security)
+function decodeJWT(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    ).join(''));
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isMounted = useRef(true);
 
   // Check for existing session on mount
   useEffect(() => {
-    const initializeAuth = () => {
+    const initializeAuth = async () => {
       try {
         const token = localStorage.getItem('access_token');
         const userData = localStorage.getItem('user');
-        
+
         if (token && userData) {
-          setUser(JSON.parse(userData));
+          // Verify token is still valid by checking expiry
+          const tokenPayload = decodeJWT(token);
+          if (tokenPayload && (!tokenPayload.exp || tokenPayload.exp > Date.now() / 1000)) {
+            setUser(JSON.parse(userData));
+          } else {
+            // Token expired, clear it
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user');
+          }
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
       } finally {
-        setLoading(false);
+        if (isMounted.current) {
+          setLoading(false);
+        }
       }
     };
 
     initializeAuth();
+
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   const login = useCallback(async (email, password) => {
@@ -35,15 +64,18 @@ export function AuthProvider({ children }) {
     try {
       const response = await authAPI.login(email, password);
       const { access_token } = response;
-      
-      // Decode token to get user info (simple base64 decode for demo)
-      const tokenPayload = JSON.parse(atob(access_token.split('.')[1]));
-      const userData = { email: tokenPayload.sub, name: tokenPayload.name };
-      
+
+      // Decode token to get user info
+      const tokenPayload = decodeJWT(access_token);
+      const userData = { 
+        email: tokenPayload?.sub || email, 
+        name: tokenPayload?.name || email.split('@')[0] 
+      };
+
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      
+
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.detail || 'Failed to log in';
